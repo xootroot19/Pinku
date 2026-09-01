@@ -1,0 +1,606 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: Create Flutter project
+        run: |
+          flutter create . --platforms android --project-name chupa_rola_app
+          mkdir -p lib
+
+      - name: Write pubspec.yaml
+        run: |
+          cat > pubspec.yaml << 'PUBSPEC_EOF'
+          name: chupa_rola_app
+          description: Guia do Oral Perfeito
+          publish_to: 'none'
+          version: 1.0.0+1
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            flutter:
+              sdk: flutter
+          flutter:
+            uses-material-design: true
+          PUBSPEC_EOF
+
+      - name: Write main.dart
+        run: |
+          cat > lib/main.dart << 'DART_EOF'
+          import 'package:flutter/material.dart';
+
+          void main() => runApp(const ChupaRolaApp());
+
+          class ChupaRolaApp extends StatelessWidget {
+            const ChupaRolaApp({super.key});
+
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                title: 'Guia do Oral Perfeito',
+                debugShowCheckedModeBanner: false,
+                theme: ThemeData(
+                  primaryColor: const Color(0xFF8E24AA),
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: const Color(0xFF8E24AA),
+                    primary: const Color(0xFF8E24AA),
+                  ),
+                  scaffoldBackgroundColor: const Color(0xFF12121A),
+                  useMaterial3: true,
+                ),
+                home: const HomeScreen(),
+              );
+            }
+          }
+
+          class Lesson {
+            final String title;
+            final String icon;
+            final String description;
+            final List<String> steps;
+            final String tip;
+            final String warning;
+
+            Lesson({
+              required this.title,
+              required this.icon,
+              required this.description,
+              required this.steps,
+              required this.tip,
+              required this.warning,
+            });
+          }
+
+          final List<Lesson> lessons = [
+            Lesson(
+              title: 'Preparação',
+              icon: '🚿',
+              description: 'Higiene e relaxamento antes do oral',
+              steps: [
+                'Tome banho e lave bem a região genital',
+                'Escove os dentes e use fio dental',
+                'Hidrate os lábios para evitar rachaduras',
+                'Converse com o parceiro sobre limites e preferências',
+                'Relaxe o maxilar com massagem suave',
+              ],
+              tip: 'Lábios hidratados deslizam melhor e causam mais prazer.',
+              warning: 'Nunca escove os dentes imediatamente antes do oral profundo. Microlesões na gengiva aumentam risco de ISTs.',
+            ),
+            Lesson(
+              title: 'Aquecimento',
+              icon: '🔥',
+              description: 'Comece devagar, provoque, aumente a expectativa',
+              steps: [
+                'Beije o abdômen e a região ao redor do pênis',
+                'Passe a língua pela virilha e coxas internas',
+                'Beije o pênis de cima a baixo sem pressa',
+                'Lamba o freio (parte sensível abaixo da cabeça)',
+                'Alterne entre lambidas largas e pontuais',
+              ],
+              tip: 'A antecipação é metade do prazer. Não vá direto ao ponto.',
+              warning: 'Se o parceiro demonstrar desconforto, volte para o aquecimento.',
+            ),
+            Lesson(
+              title: 'Sucção e Língua',
+              icon: '👅',
+              description: 'Técnicas básicas com boca e língua',
+              steps: [
+                'Envolva a cabeça com os lábios sem pressão excessiva',
+                'Use a língua para circular a glande lentamente',
+                'Crie vácuo suave ao puxar para cima',
+                'Alterne entre sucção leve e intensa',
+                'Passe a ponta da língua na abertura uretral',
+                'Explore as laterais do pênis com a língua',
+              ],
+              tip: 'A sensibilidade varia. Observe as reações do parceiro.',
+              warning: 'Evite usar os dentes. Se não conseguir cobrir, use mais lábios.',
+            ),
+            Lesson(
+              title: 'Garganta Profunda',
+              icon: '🤯',
+              description: 'Engolir o pênis por completo com controle',
+              steps: [
+                'Relaxe a garganta com respiração profunda',
+                'Posicione a cabeça alinhada com o pênis',
+                'Abra bem a boca e mantenha a língua para fora',
+                'Avance lentamente até sentir o limite',
+                'Respire pelo nariz enquanto desliza',
+                'Pratique o reflexo de engolir para abrir a garganta',
+                'Use as mãos no que sobra para estimular junto',
+              ],
+              tip: 'O segredo é a respiração. Inspire pelo nariz, expire pela boca.',
+              warning: 'Nunca force. Se o reflexo de vômito for forte, recue e tente de novo.',
+            ),
+            Lesson(
+              title: 'Ritmo e Variação',
+              icon: '🎵',
+              description: 'Crie padrões e surpreenda',
+              steps: [
+                'Alterne entre rápido e lento',
+                'Combine mão e boca ao mesmo tempo',
+                'Pare no meio e olhe nos olhos do parceiro',
+                'Use gemidos para criar vibração',
+                'Explore a base do pênis com os dedos',
+                'Massageie as bolas durante a sucção',
+                'Mude de posição: de joelhos, deitado, invertido',
+              ],
+              tip: 'Gemidos criam vibração que o parceiro sente diretamente.',
+              warning: 'Não mantenha o mesmo ritmo por muito tempo. A monotonia diminui o prazer.',
+            ),
+            Lesson(
+              title: 'Finalização',
+              icon: '💦',
+              description: 'O momento da ejaculação',
+              steps: [
+                'Combine antes se o parceiro vai gozar na boca',
+                'Mantenha a sucção constante durante o orgasmo',
+                'Continue lambendo suavemente após ele gozar',
+                'Engula ou deixe escorrer, conforme combinado',
+                'Use as mãos para estimular o resto do corpo',
+                'Olhe nos olhos dele enquanto finaliza',
+              ],
+              tip: 'O pênis fica extremamente sensível após o orgasmo. Vá com calma.',
+              warning: 'Comunique-se antes. Nem todo mundo gosta de gozar na boca.',
+            ),
+            Lesson(
+              title: 'Segurança',
+              icon: '🛡️',
+              description: 'Proteção e saúde',
+              steps: [
+                'Use camisinha para reduzir risco de ISTs',
+                'Verifique se não há feridas ou verrugas no parceiro',
+                'Teste-se regularmente para HIV, sífilis e hepatites',
+                'Considere PrEP se tiver múltiplos parceiros',
+                'Não faça oral profundo com feridas na boca',
+              ],
+              tip: 'Camisinha com sabor torna o oral mais agradável e seguro.',
+              warning: 'ISTs podem ser transmitidas pelo sexo oral. Proteja-se sempre.',
+            ),
+            Lesson(
+              title: 'Pós-Oral',
+              icon: '😌',
+              description: 'Cuidados e carinho',
+              steps: [
+                'Beba água para reidratar',
+                'Limpe os lábios e o rosto',
+                'Agradeça e converse sobre o que foi bom',
+                'Faça gargarejo com água morna e sal',
+                'Relaxe junto com o parceiro',
+              ],
+              tip: 'O pós-sexo é tão importante quanto o ato. Carinho fortalece a conexão.',
+              warning: 'Dor de garganta persistente após oral pode indicar infecção. Procure médico.',
+            ),
+          ];
+
+          class HomeScreen extends StatelessWidget {
+            const HomeScreen({super.key});
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(
+                  title: const Text(
+                    'Guia do Oral Perfeito',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  backgroundColor: const Color(0xFF8E24AA),
+                  foregroundColor: Colors.white,
+                  centerTitle: true,
+                  elevation: 0,
+                ),
+                body: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0xFF12121A), Color(0xFF1F1F30)],
+                    ),
+                  ),
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: lessons.length + 1,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 20),
+                          child: Column(
+                            children: [
+                              const Icon(
+                                Icons.self_improvement,
+                                size: 64,
+                                color: Color(0xFF8E24AA),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Aprenda, pratique, aperfeiçoe',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '8 lições completas para você dominar a arte do sexo oral com confiança e segurança.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                              ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFF8E24AA).withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                  children: [
+                                    _statColumn('8', 'Lições'),
+                                    _statColumn('48', 'Passos'),
+                                    _statColumn('100%', 'Grátis'),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final lesson = lessons[index - 1];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: Colors.white.withOpacity(0.07),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(
+                            color: const Color(0xFF8E24AA).withOpacity(0.2),
+                          ),
+                        ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.all(16),
+                          leading: Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF8E24AA).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(lesson.icon,
+                                  style: const TextStyle(fontSize: 24)),
+                            ),
+                          ),
+                          title: Text(
+                            lesson.title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 16,
+                            ),
+                          ),
+                          subtitle: Text(
+                            lesson.description,
+                            style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                          ),
+                          trailing: const Icon(
+                            Icons.chevron_right,
+                            color: Color(0xFF8E24AA),
+                          ),
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    LessonDetailScreen(lesson: lesson),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              );
+            }
+
+            Widget _statColumn(String value, String label) {
+              return Column(
+                children: [
+                  Text(
+                    value,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF8E24AA),
+                    ),
+                  ),
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                  ),
+                ],
+              );
+            }
+          }
+
+          class LessonDetailScreen extends StatefulWidget {
+            final Lesson lesson;
+
+            const LessonDetailScreen({super.key, required this.lesson});
+
+            @override
+            State<LessonDetailScreen> createState() => _LessonDetailScreenState();
+          }
+
+          class _LessonDetailScreenState extends State<LessonDetailScreen> {
+            final Set<int> _completedSteps = {};
+            double _progress = 0;
+
+            void _toggleStep(int index) {
+              setState(() {
+                if (_completedSteps.contains(index)) {
+                  _completedSteps.remove(index);
+                } else {
+                  _completedSteps.add(index);
+                }
+                _progress = _completedSteps.length / widget.lesson.steps.length;
+              });
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                backgroundColor: const Color(0xFF12121A),
+                appBar: AppBar(
+                  title: Text(
+                    widget.lesson.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  backgroundColor: const Color(0xFF8E24AA),
+                  foregroundColor: Colors.white,
+                  centerTitle: true,
+                  elevation: 0,
+                ),
+                body: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF8E24AA).withOpacity(0.1),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(widget.lesson.icon,
+                              style: const TextStyle(fontSize: 48)),
+                          const SizedBox(height: 8),
+                          Text(
+                            widget.lesson.description,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                          ),
+                          const SizedBox(height: 12),
+                          LinearProgressIndicator(
+                            value: _progress,
+                            backgroundColor: Colors.white.withOpacity(0.1),
+                            color: const Color(0xFF8E24AA),
+                            minHeight: 8,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${_completedSteps.length} de ${widget.lesson.steps.length} concluídos',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: widget.lesson.steps.length + 2,
+                        itemBuilder: (context, index) {
+                          if (index < widget.lesson.steps.length) {
+                            final step = widget.lesson.steps[index];
+                            final isCompleted = _completedSteps.contains(index);
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              color: isCompleted
+                                  ? const Color(0xFF8E24AA).withOpacity(0.15)
+                                  : Colors.white.withOpacity(0.05),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: isCompleted
+                                      ? const Color(0xFF8E24AA)
+                                      : Colors.transparent,
+                                ),
+                              ),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor: isCompleted
+                                      ? const Color(0xFF8E24AA)
+                                      : Colors.white.withOpacity(0.1),
+                                  child: isCompleted
+                                      ? const Icon(Icons.check,
+                                          color: Colors.white, size: 18)
+                                      : Text('${index + 1}',
+                                          style: const TextStyle(
+                                              color: Colors.white, fontSize: 14)),
+                                ),
+                                title: Text(
+                                  step,
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    decoration: isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                    decorationColor: const Color(0xFF8E24AA),
+                                  ),
+                                ),
+                                trailing: IconButton(
+                                  icon: Icon(
+                                    isCompleted
+                                        ? Icons.check_circle
+                                        : Icons.circle_outlined,
+                                    color: isCompleted
+                                        ? const Color(0xFF8E24AA)
+                                        : Colors.grey[600],
+                                  ),
+                                  onPressed: () => _toggleStep(index),
+                                ),
+                                onTap: () => _toggleStep(index),
+                              ),
+                            );
+                          } else if (index == widget.lesson.steps.length) {
+                            return Container(
+                              margin: const EdgeInsets.only(top: 16, bottom: 8),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.green.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.green.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.lightbulb, color: Colors.green),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      widget.lesson.tip,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          } else {
+                            return Container(
+                              margin: const EdgeInsets.only(top: 8, bottom: 16),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.red.withOpacity(0.3),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.warning, color: Colors.red),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      widget.lesson.warning,
+                                      style: const TextStyle(
+                                          color: Colors.white, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    ),
+                    if (_completedSteps.length == widget.lesson.steps.length)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        child: ElevatedButton(
+                          onPressed: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  '🎉 Parabéns! Lição concluída com sucesso!',
+                                  textAlign: TextAlign.center,
+                                ),
+                                backgroundColor: Color(0xFF8E24AA),
+                                duration: Duration(seconds: 2),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF8E24AA),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: const Text(
+                            'Concluir Lição',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            }
+          }
+          DART_EOF
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: chupa-rola-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
