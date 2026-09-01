@@ -1,0 +1,822 @@
+name: Build Luma Demo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Criar projeto
+        run: flutter create luma --platforms=android --org app.luma.demo
+
+      - name: Criar aplicativo
+        shell: bash
+        run: |
+          cat > luma/lib/main.dart <<'DART'
+          import 'package:flutter/material.dart';
+
+          void main() => runApp(const Luma());
+
+          class Luma extends StatelessWidget {
+            const Luma({super.key});
+
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'Luma',
+                theme: ThemeData(
+                  useMaterial3: true,
+                  brightness: Brightness.light,
+                  colorScheme: ColorScheme.fromSeed(
+                    seedColor: const Color(0xFFE83E8C),
+                  ),
+                  scaffoldBackgroundColor: const Color(0xFFFFF8FB),
+                ),
+                home: const Discover(),
+              );
+            }
+          }
+
+          class Profile {
+            final String name;
+            final int age;
+            final String bio;
+            final String emoji;
+            final List<String> interests;
+
+            const Profile(
+              this.name,
+              this.age,
+              this.bio,
+              this.emoji,
+              this.interests,
+            );
+          }
+
+          class Discover extends StatefulWidget {
+            const Discover({super.key});
+
+            @override
+            State<Discover> createState() => _DiscoverState();
+          }
+
+          class _DiscoverState extends State<Discover>
+              with TickerProviderStateMixin {
+
+            final profiles = const [
+              Profile(
+                'Lívia',
+                22,
+                'Café, fotografia e passeios pela cidade.',
+                '🌷',
+                ['Fotografia', 'Café', 'Filmes'],
+              ),
+              Profile(
+                'Sofia',
+                24,
+                'Design, música e viagens.',
+                '🎧',
+                ['Design', 'Música', 'Viagens'],
+              ),
+              Profile(
+                'Maya',
+                21,
+                'Livros, arte e cachorros.',
+                '✨',
+                ['Livros', 'Arte', 'Pets'],
+              ),
+              Profile(
+                'Clara',
+                25,
+                'Cinema, culinária e natureza.',
+                '🌸',
+                ['Cinema', 'Comida', 'Natureza'],
+              ),
+              Profile(
+                'Isabela',
+                23,
+                'Games, tecnologia e música.',
+                '💫',
+                ['Games', 'Tech', 'Música'],
+              ),
+            ];
+
+            int index = 0;
+            int nav = 0;
+            Offset drag = Offset.zero;
+            double angle = 0;
+
+            Profile get current =>
+                profiles[index % profiles.length];
+
+            void resetCard() {
+              setState(() {
+                drag = Offset.zero;
+                angle = 0;
+              });
+            }
+
+            void next(bool liked) async {
+              final width = MediaQuery.of(context).size.width;
+
+              setState(() {
+                drag = Offset(
+                  liked ? width * 1.5 : -width * 1.5,
+                  30,
+                );
+                angle = liked ? .25 : -.25;
+              });
+
+              await Future.delayed(
+                const Duration(milliseconds: 260),
+              );
+
+              if (!mounted) return;
+
+              final matched = liked && index % 2 == 0;
+
+              setState(() {
+                index++;
+                drag = Offset.zero;
+                angle = 0;
+              });
+
+              if (matched) showMatch();
+            }
+
+            void showMatch() {
+              showGeneralDialog(
+                context: context,
+                barrierDismissible: true,
+                barrierLabel: 'Match',
+                barrierColor: Colors.black54,
+                transitionDuration:
+                    const Duration(milliseconds: 350),
+                pageBuilder: (_, __, ___) {
+                  return Center(
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        margin: const EdgeInsets.all(28),
+                        padding: const EdgeInsets.all(30),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius:
+                              BorderRadius.circular(32),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text(
+                              '💖',
+                              style: TextStyle(fontSize: 64),
+                            ),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'É um match!',
+                              style: TextStyle(
+                                fontSize: 31,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Match fictício do modo demonstração.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.black54,
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(context),
+                              child: const Text('Continuar'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                transitionBuilder:
+                    (_, animation, __, child) {
+                  return ScaleTransition(
+                    scale: CurvedAnimation(
+                      parent: animation,
+                      curve: Curves.easeOutBack,
+                    ),
+                    child: FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    ),
+                  );
+                },
+              );
+            }
+
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                body: SafeArea(
+                  child: Column(
+                    children: [
+                      header(),
+                      Expanded(
+                        child: nav == 0
+                            ? discover()
+                            : placeholder(),
+                      ),
+                      bottomNav(),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            Widget header() {
+              return Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(20, 12, 14, 8),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: const BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color(0xFFFF4F9A),
+                            Color(0xFFD62E83),
+                          ],
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.favorite_rounded,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 11),
+                    const Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Luma',
+                          style: TextStyle(
+                            fontSize: 25,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          'Ferraz • demonstração',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.black45,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          showDragHandle: true,
+                          builder: (_) => const Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Preferências',
+                                  style: TextStyle(
+                                    fontSize: 25,
+                                    fontWeight:
+                                        FontWeight.w900,
+                                  ),
+                                ),
+                                SizedBox(height: 15),
+                                ListTile(
+                                  leading: Icon(
+                                    Icons.tune_rounded,
+                                  ),
+                                  title: Text(
+                                    'Filtros de demonstração',
+                                  ),
+                                  subtitle: Text(
+                                    'Os perfis exibidos são fictícios e adultos.',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.tune_rounded,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget discover() {
+              return Column(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding:
+                          const EdgeInsets.fromLTRB(
+                        16,
+                        8,
+                        16,
+                        8,
+                      ),
+                      child: LayoutBuilder(
+                        builder: (context, box) {
+                          return GestureDetector(
+                            onPanUpdate: (details) {
+                              setState(() {
+                                drag += details.delta;
+                                angle =
+                                    drag.dx / box.maxWidth * .25;
+                              });
+                            },
+                            onPanEnd: (_) {
+                              if (drag.dx > 100) {
+                                next(true);
+                              } else if (drag.dx < -100) {
+                                next(false);
+                              } else {
+                                resetCard();
+                              }
+                            },
+                            child: AnimatedContainer(
+                              duration: drag == Offset.zero
+                                  ? const Duration(
+                                      milliseconds: 280,
+                                    )
+                                  : Duration.zero,
+                              curve: Curves.easeOutBack,
+                              transform:
+                                  Matrix4.identity()
+                                    ..translate(
+                                      drag.dx,
+                                      drag.dy,
+                                    )
+                                    ..rotateZ(angle),
+                              transformAlignment:
+                                  Alignment.center,
+                              child: profileCard(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  actions(),
+                ],
+              );
+            }
+
+            Widget profileCard() {
+              final likeOpacity =
+                  (drag.dx / 100).clamp(0.0, 1.0);
+              final nopeOpacity =
+                  (-drag.dx / 100).clamp(0.0, 1.0);
+
+              return Container(
+                decoration: BoxDecoration(
+                  borderRadius:
+                      BorderRadius.circular(30),
+                  boxShadow: const [
+                    BoxShadow(
+                      blurRadius: 24,
+                      offset: Offset(0, 10),
+                      color: Color(0x19000000),
+                    ),
+                  ],
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFFFFB5D0),
+                      Color(0xFFF287B6),
+                      Color(0xFFB65A94),
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius:
+                      BorderRadius.circular(30),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Column(
+                          mainAxisAlignment:
+                              MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              current.emoji,
+                              style: const TextStyle(
+                                fontSize: 130,
+                              ),
+                            ),
+                            const SizedBox(height: 20),
+                          ],
+                        ),
+                      ),
+
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.transparent,
+                                Colors.black
+                                    .withValues(alpha: .05),
+                                Colors.black
+                                    .withValues(alpha: .82),
+                              ],
+                              stops: const [
+                                .35,
+                                .58,
+                                1,
+                              ],
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 28,
+                        left: 24,
+                        child: Opacity(
+                          opacity: likeOpacity,
+                          child: Transform.rotate(
+                            angle: -.15,
+                            child: label(
+                              'CURTI',
+                              const Color(0xFF56E39F),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        top: 28,
+                        right: 24,
+                        child: Opacity(
+                          opacity: nopeOpacity,
+                          child: Transform.rotate(
+                            angle: .15,
+                            child: label(
+                              'PASSO',
+                              const Color(0xFFFF6680),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      Positioned(
+                        left: 24,
+                        right: 24,
+                        bottom: 25,
+                        child: Column(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    '${current.name}, ${current.age}',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 30,
+                                      fontWeight:
+                                          FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.verified_rounded,
+                                  color:
+                                      Color(0xFFFF78AD),
+                                  size: 22,
+                                ),
+                              ],
+                            ),
+
+                            const SizedBox(height: 6),
+
+                            Text(
+                              current.bio,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight:
+                                    FontWeight.w500,
+                              ),
+                            ),
+
+                            const SizedBox(height: 13),
+
+                            Wrap(
+                              spacing: 7,
+                              runSpacing: 7,
+                              children:
+                                  current.interests
+                                      .map(
+                                        (interest) =>
+                                            Container(
+                                          padding:
+                                              const EdgeInsets
+                                                  .symmetric(
+                                            horizontal: 12,
+                                            vertical: 7,
+                                          ),
+                                          decoration:
+                                              BoxDecoration(
+                                            color: Colors
+                                                .white
+                                                .withValues(
+                                              alpha: .18,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius
+                                                    .circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            interest,
+                                            style:
+                                                const TextStyle(
+                                              color:
+                                                  Colors.white,
+                                              fontWeight:
+                                                  FontWeight
+                                                      .w700,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            Widget label(String text, Color color) {
+              return Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 15,
+                  vertical: 7,
+                ),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: color,
+                    width: 3,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(9),
+                ),
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              );
+            }
+
+            Widget actions() {
+              return Padding(
+                padding:
+                    const EdgeInsets.fromLTRB(40, 7, 40, 18),
+                child: Row(
+                  mainAxisAlignment:
+                      MainAxisAlignment.spaceEvenly,
+                  children: [
+                    actionButton(
+                      Icons.close_rounded,
+                      const Color(0xFFEF4F78),
+                      () => next(false),
+                      62,
+                    ),
+                    actionButton(
+                      Icons.star_rounded,
+                      const Color(0xFF9C6ADE),
+                      () {
+                        ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Supercurtida fictícia ✨',
+                              ),
+                              behavior:
+                                  SnackBarBehavior.floating,
+                            ),
+                          );
+                      },
+                      50,
+                    ),
+                    actionButton(
+                      Icons.favorite_rounded,
+                      const Color(0xFFE83E8C),
+                      () => next(true),
+                      62,
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            Widget actionButton(
+              IconData icon,
+              Color color,
+              VoidCallback tap,
+              double size,
+            ) {
+              return Material(
+                color: Colors.white,
+                shape: const CircleBorder(),
+                elevation: 3,
+                child: InkWell(
+                  customBorder:
+                      const CircleBorder(),
+                  onTap: tap,
+                  child: SizedBox(
+                    width: size,
+                    height: size,
+                    child: Icon(
+                      icon,
+                      color: color,
+                      size: size * .48,
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            Widget bottomNav() {
+              final items = [
+                Icons.local_fire_department_rounded,
+                Icons.favorite_border_rounded,
+                Icons.chat_bubble_outline_rounded,
+                Icons.person_outline_rounded,
+              ];
+
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    top: BorderSide(
+                      color: Color(0xFFF0E8EC),
+                    ),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment:
+                          MainAxisAlignment.spaceAround,
+                      children: List.generate(
+                        items.length,
+                        (i) => IconButton(
+                          onPressed: () =>
+                              setState(() => nav = i),
+                          icon: AnimatedScale(
+                            duration: const Duration(
+                              milliseconds: 180,
+                            ),
+                            scale: nav == i ? 1.18 : 1,
+                            child: Icon(
+                              items[i],
+                              color: nav == i
+                                  ? const Color(
+                                      0xFFE83E8C,
+                                    )
+                                  : Colors.black38,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            Widget placeholder() {
+              const data = [
+                (
+                  Icons.favorite_rounded,
+                  'Curtidas',
+                  'Área demonstrativa de curtidas.',
+                ),
+                (
+                  Icons.chat_bubble_rounded,
+                  'Conversas',
+                  'Nenhuma conversa real é criada.',
+                ),
+                (
+                  Icons.person_rounded,
+                  'Meu perfil',
+                  'Perfil local de demonstração.',
+                ),
+              ];
+
+              final d = data[(nav - 1).clamp(0, 2)];
+
+              return Center(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.all(30),
+                  child: Column(
+                    mainAxisAlignment:
+                        MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        d.$1,
+                        size: 70,
+                        color:
+                            const Color(0xFFE83E8C),
+                      ),
+                      const SizedBox(height: 18),
+                      Text(
+                        d.$2,
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        d.$3,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+          }
+          DART
+
+      - name: Dependencias
+        working-directory: luma
+        run: flutter pub get
+
+      - name: Build APK
+        working-directory: luma
+        run: flutter build apk --release
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Luma-Demo-APK
+          path: luma/build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 14
