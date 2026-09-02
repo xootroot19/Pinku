@@ -1,0 +1,442 @@
+name: Gerar APK - Image Bulk Downloader
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Criar projeto
+        run: |
+          mkdir -p app
+          cd app
+
+          cat > main.py <<'PY'
+          __version__ = "1.0.0"
+
+          import os
+          import re
+          import threading
+          import hashlib
+          from html.parser import HTMLParser
+          from urllib.parse import urljoin, urlparse, urldefrag
+
+          import requests
+
+          from kivy.app import App
+          from kivy.clock import Clock
+          from kivy.uix.boxlayout import BoxLayout
+          from kivy.uix.button import Button
+          from kivy.uix.label import Label
+          from kivy.uix.textinput import TextInput
+          from kivy.uix.scrollview import ScrollView
+
+
+          IMAGE_EXTENSIONS = (
+              ".jpg", ".jpeg", ".png", ".webp",
+              ".gif", ".bmp", ".avif"
+          )
+
+
+          class PageParser(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.images = set()
+                  self.links = set()
+
+              def handle_starttag(self, tag, attrs):
+                  attrs = dict(attrs)
+
+                  if tag == "img":
+                      for key in ("src", "data-src", "data-original", "data-lazy-src"):
+                          value = attrs.get(key)
+                          if value:
+                              self.images.add(value)
+
+                      srcset = attrs.get("srcset") or attrs.get("data-srcset")
+                      if srcset:
+                          for candidate in srcset.split(","):
+                              url = candidate.strip().split(" ")[0]
+                              if url:
+                                  self.images.add(url)
+
+                  elif tag == "source":
+                      srcset = attrs.get("srcset")
+                      if srcset:
+                          for candidate in srcset.split(","):
+                              url = candidate.strip().split(" ")[0]
+                              if url:
+                                  self.images.add(url)
+
+                  elif tag == "a":
+                      href = attrs.get("href")
+                      if href:
+                          self.links.add(href)
+
+
+          class MainApp(App):
+
+              def build(self):
+                  self.cancelled = False
+
+                  root = BoxLayout(
+                      orientation="vertical",
+                      padding=20,
+                      spacing=12
+                  )
+
+                  title = Label(
+                      text="Image Bulk Downloader",
+                      size_hint_y=None,
+                      height=60,
+                      font_size="22sp"
+                  )
+
+                  self.url_input = TextInput(
+                      hint_text="https://meusite.com",
+                      multiline=False,
+                      size_hint_y=None,
+                      height=55
+                  )
+
+                  self.button = Button(
+                      text="Baixar imagens",
+                      size_hint_y=None,
+                      height=60
+                  )
+                  self.button.bind(on_press=self.start_download)
+
+                  self.status = Label(
+                      text="Digite o endereço do seu site.",
+                      size_hint_y=None,
+                      height=80
+                  )
+
+                  self.log_label = Label(
+                      text="",
+                      size_hint_y=None,
+                      text_size=(None, None),
+                      valign="top"
+                  )
+                  self.log_label.bind(
+                      texture_size=lambda instance, value:
+                      setattr(instance, "height", value[1])
+                  )
+
+                  scroll = ScrollView()
+                  scroll.add_widget(self.log_label)
+
+                  root.add_widget(title)
+                  root.add_widget(self.url_input)
+                  root.add_widget(self.button)
+                  root.add_widget(self.status)
+                  root.add_widget(scroll)
+
+                  return root
+
+              def ui(self, text):
+                  Clock.schedule_once(
+                      lambda dt: setattr(self.status, "text", text)
+                  )
+
+              def log(self, text):
+                  def update(dt):
+                      self.log_label.text += text + "\n"
+                  Clock.schedule_once(update)
+
+              def start_download(self, *_):
+                  url = self.url_input.text.strip()
+
+                  if not url:
+                      self.ui("Informe uma URL.")
+                      return
+
+                  if not url.startswith(("http://", "https://")):
+                      url = "https://" + url
+
+                  self.button.disabled = True
+                  self.log_label.text = ""
+
+                  threading.Thread(
+                      target=self.crawl,
+                      args=(url,),
+                      daemon=True
+                  ).start()
+
+              def crawl(self, start_url):
+                  session = requests.Session()
+                  session.headers.update({
+                      "User-Agent":
+                          "Mozilla/5.0 ImageDownloader/1.0"
+                  })
+
+                  parsed_start = urlparse(start_url)
+                  allowed_host = parsed_start.netloc.lower()
+
+                  output = os.path.join(
+                      self.user_data_dir,
+                      "imagens"
+                  )
+                  os.makedirs(output, exist_ok=True)
+
+                  pages = [start_url]
+                  visited = set()
+                  images = set()
+
+                  MAX_PAGES = 200
+                  MAX_IMAGES = 5000
+
+                  try:
+                      while pages and len(visited) < MAX_PAGES:
+                          page = pages.pop(0)
+                          page, _ = urldefrag(page)
+
+                          if page in visited:
+                              continue
+
+                          parsed = urlparse(page)
+
+                          if parsed.netloc.lower() != allowed_host:
+                              continue
+
+                          if parsed.scheme not in ("http", "https"):
+                              continue
+
+                          visited.add(page)
+
+                          self.ui(
+                              f"Páginas: {len(visited)} | "
+                              f"Imagens encontradas: {len(images)}"
+                          )
+
+                          try:
+                              r = session.get(
+                                  page,
+                                  timeout=15
+                              )
+                              r.raise_for_status()
+
+                              content_type = r.headers.get(
+                                  "content-type", ""
+                              )
+
+                              if "text/html" not in content_type:
+                                  continue
+
+                              parser = PageParser()
+                              parser.feed(r.text)
+
+                          except Exception as exc:
+                              self.log(
+                                  f"Erro página: {page}"
+                              )
+                              continue
+
+                          for raw_image in parser.images:
+                              img = urljoin(page, raw_image)
+                              img, _ = urldefrag(img)
+
+                              parsed_img = urlparse(img)
+
+                              if parsed_img.scheme in ("http", "https"):
+                                  images.add(img)
+
+                              if len(images) >= MAX_IMAGES:
+                                  break
+
+                          if len(images) >= MAX_IMAGES:
+                              break
+
+                          for raw_link in parser.links:
+                              link = urljoin(page, raw_link)
+                              link, _ = urldefrag(link)
+
+                              parsed_link = urlparse(link)
+
+                              if (
+                                  parsed_link.netloc.lower() == allowed_host
+                                  and parsed_link.scheme in ("http", "https")
+                                  and link not in visited
+                              ):
+                                  pages.append(link)
+
+                      self.log(
+                          f"{len(images)} imagens encontradas."
+                      )
+
+                      downloaded = 0
+
+                      for index, image_url in enumerate(images, 1):
+                          self.ui(
+                              f"Baixando {index}/{len(images)}"
+                          )
+
+                          try:
+                              r = session.get(
+                                  image_url,
+                                  timeout=30,
+                                  stream=True
+                              )
+                              r.raise_for_status()
+
+                              content_type = r.headers.get(
+                                  "content-type", ""
+                              ).lower()
+
+                              if not content_type.startswith("image/"):
+                                  continue
+
+                              parsed = urlparse(image_url)
+                              filename = os.path.basename(parsed.path)
+
+                              filename = re.sub(
+                                  r"[^a-zA-Z0-9._-]",
+                                  "_",
+                                  filename
+                              )
+
+                              if not filename or "." not in filename:
+                                  ext = content_type.split("/")[-1]
+                                  ext = ext.split(";")[0]
+
+                                  if ext == "jpeg":
+                                      ext = "jpg"
+
+                                  digest = hashlib.md5(
+                                      image_url.encode()
+                                  ).hexdigest()[:12]
+
+                                  filename = f"imagem_{digest}.{ext}"
+
+                              filepath = os.path.join(
+                                  output,
+                                  filename
+                              )
+
+                              # Evitar sobrescrever arquivos iguais
+                              if os.path.exists(filepath):
+                                  digest = hashlib.md5(
+                                      image_url.encode()
+                                  ).hexdigest()[:8]
+
+                                  base, ext = os.path.splitext(filename)
+
+                                  filepath = os.path.join(
+                                      output,
+                                      f"{base}_{digest}{ext}"
+                                  )
+
+                              with open(filepath, "wb") as f:
+                                  for chunk in r.iter_content(65536):
+                                      if chunk:
+                                          f.write(chunk)
+
+                              downloaded += 1
+                              self.log(filename)
+
+                          except Exception:
+                              self.log(
+                                  f"Falhou: {image_url}"
+                              )
+
+                      self.ui(
+                          f"Concluído: {downloaded} imagens."
+                      )
+
+                      self.log("")
+                      self.log(
+                          "Pasta interna:"
+                      )
+                      self.log(output)
+
+                  except Exception as exc:
+                      self.ui(f"Erro: {exc}")
+
+                  finally:
+                      Clock.schedule_once(
+                          lambda dt:
+                          setattr(self.button, "disabled", False)
+                      )
+
+
+          MainApp().run()
+          PY
+
+          cat > buildozer.spec <<'SPEC'
+          [app]
+
+          title = Image Bulk Downloader
+          package.name = imagebulk
+          package.domain = com.example
+
+          source.dir = .
+          source.include_exts = py,png,jpg,kv,atlas
+
+          version = 1.0.0
+
+          requirements = python3,kivy,requests,urllib3,certifi
+
+          orientation = portrait
+          fullscreen = 0
+
+          android.permissions = INTERNET
+          android.api = 35
+          android.minapi = 23
+          android.archs = arm64-v8a, armeabi-v7a
+
+          [buildozer]
+
+          log_level = 2
+          warn_on_root = 1
+          SPEC
+
+      - name: Dependências do Buildozer
+        run: |
+          sudo apt update
+
+          sudo apt install -y \
+            git \
+            zip \
+            unzip \
+            openjdk-17-jdk \
+            python3-pip \
+            python3-virtualenv \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            libtinfo6 \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            automake \
+            autopoint \
+            gettext
+
+          python3 -m virtualenv venv
+          source venv/bin/activate
+
+          pip install --upgrade pip
+          pip install buildozer setuptools "cython==0.29.34"
+
+      - name: Compilar APK
+        working-directory: app
+        run: |
+          source ../venv/bin/activate
+          yes | buildozer -v android debug || true
+          buildozer -v android debug
+
+      - name: Mostrar APK gerado
+        run: |
+          find app/bin -type f || true
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImageBulkDownloader-APK
+          path: app/bin/*.apk
+          if-no-files-found: error
